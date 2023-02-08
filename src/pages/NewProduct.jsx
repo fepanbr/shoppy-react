@@ -1,89 +1,104 @@
 import React, { useState } from "react";
-import TextInput from "../components/ui/TextInput";
+import { uploadImage } from "../api/uploader";
+import useProducts from "../hooks/useProducts";
 
 export default function NewProduct() {
-  const [form, setForm] = useState({
-    name: "",
-    category: "",
-    price: "",
-    description: "",
-    options: "",
-    image: null,
-  });
+  const [product, setProduct] = useState({});
+  const [file, setFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const [imageUrl, setImageUrl] = useState("");
+  const { addProduct } = useProducts();
 
-  const handleFileChange = (e) => {
-    const { files } = e.target;
-    if (files.length === 0) return;
-    setImageUrl(URL.createObjectURL(files[0]));
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setIsUploading(true);
+    uploadImage(file)
+      .then((url) => {
+        addProduct.mutate(
+          { product, url },
+          {
+            onSuccess: () => {
+              setSuccess("성공적으로 제품이 추가되었습니다.");
+              setTimeout(() => {
+                setSuccess(null);
+              }, 4000);
+            },
+          }
+        );
+
+        setIsUploading(true);
+      })
+      .finally((_) => setIsUploading(false));
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
-  };
-
-  const handleSubmit = () => {
-    // validation 후 firebase로 업로드
-    // validation 생략
-
-    for (const key in form) {
-      if (Object.hasOwnProperty.call(form, key)) {
-        if (!form[key]) {
-          return;
-        }
-      }
+  const handleChange = (e) => {
+    const { value, name, files } = e.target;
+    if (name === "file") {
+      setFile(files && files[0]);
+      return;
     }
-
-    // TODO: firebase쓰기 추가
+    setProduct((product) => ({ ...product, [name]: value }));
   };
 
   return (
-    <div className="flex flex-col items-center gap-2 mt-4">
-      <h4 className="font-semibold text-3xl">새로운 제품 등록</h4>
-      {imageUrl && <img className="w-72" src={imageUrl} alt="product" />}
-      <form className="w-full flex flex-col gap-2" onSubmit={handleSubmit}>
+    <section className="w-full text-center">
+      <h2 className="text-2xl font-bold my-4">새로운 제품 등록</h2>
+      {success && <p className="my-2">{success}! 😀</p>}
+      {file && (
+        <img
+          className="w-96 mx-auto mb-2"
+          src={URL.createObjectURL(file)}
+          alt="local file"
+        />
+      )}
+      <form className="flex flex-col px-12 " onSubmit={handleSubmit}>
         <input
-          className="border p-2"
-          accept="image/*"
-          onChange={handleFileChange}
           type="file"
-          name="image"
-          id=""
+          accept="image/*"
+          name="file"
+          required
+          onChange={handleChange}
         />
-        <TextInput
-          value={form.name}
-          onChange={handleInputChange}
-          name="name"
+        <input
+          type="text"
+          name="title"
+          value={product.title ?? ""}
           placeholder="제품명"
+          onChange={handleChange}
         />
-        <TextInput
-          value={form.price}
-          onChange={handleInputChange}
+        <input
+          type="text"
           name="price"
+          value={product.price ?? ""}
           placeholder="가격"
+          onChange={handleChange}
         />
-        <TextInput
-          value={form.category}
-          onChange={handleInputChange}
+        <input
+          type="text"
           name="category"
+          value={product.category ?? ""}
           placeholder="카테고리"
+          onChange={handleChange}
         />
-        <TextInput
-          value={form.description}
-          onChange={handleInputChange}
-          name="descripion"
-          placeholder="제품설명"
+        <input
+          type="text"
+          name="description"
+          value={product.description ?? ""}
+          placeholder="제품 설명"
+          onChange={handleChange}
         />
-        <TextInput
-          value={form.options}
-          onChange={handleInputChange}
+        <input
+          type="text"
           name="options"
-          placeholder=",로 구분하여 사이즈 입력 에) XS,S,M,L,XL"
+          value={product.options ?? ""}
+          placeholder=",로 구분하여 입력"
+          onChange={handleChange}
         />
-        <button type="submit">제품 등록하기</button>
+        <button disabled={isUploading} type="submit">
+          {isUploading ? "업로드중..." : "제품 등록하기"}
+        </button>
       </form>
-    </div>
+    </section>
   );
 }
